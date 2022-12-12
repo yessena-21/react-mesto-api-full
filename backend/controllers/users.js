@@ -1,3 +1,4 @@
+require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
@@ -8,6 +9,33 @@ const { ExistFieldError } = require('../errors/exist-field-error');
 const { NotFoundError } = require('../errors/not-found-error');
 const { AuthError } = require('../errors/auth-error');
 
+const { NODE_ENV, JWT_SECRET } = process.env;
+// const login = (req, res, next) => {
+//   const { email, password } = req.body;
+
+//   User.findOne({ email }).select('+password')
+//     .then((user) => {
+//       bcrypt.compare(password, user.password, (error, isValidPassword) => {
+//         if (!isValidPassword) return next(new AuthError('Неверный email или пароль'));
+
+//         const token = jwt.sign({ _id: user._id }, 'some-secret-key', { expiresIn: '7d' });
+
+//         // return res.send({ token });
+//         return res
+//           .cookie('jwt', token, {
+//           // token - наш JWT токен, который мы отправляем
+//             maxAge: 3600000 * 24 * 7,
+//             httpOnly: true,
+//             sameSite: false,
+//             secure: true,
+//           })
+//           .status(200)
+//           .send(user);
+//       });
+//     }).catch(() => {
+//       next(new AuthError('Неверный email или пароль'));
+//     });
+// };
 const login = (req, res, next) => {
   const { email, password } = req.body;
 
@@ -16,26 +44,25 @@ const login = (req, res, next) => {
       bcrypt.compare(password, user.password, (error, isValidPassword) => {
         if (!isValidPassword) return next(new AuthError('Неверный email или пароль'));
 
-        const token = jwt.sign({ _id: user._id }, 'some-secret-key', { expiresIn: '7d' });
+        const token = jwt.sign({ _id: user._id }, NODE_ENV === 'production' ? JWT_SECRET : 'some-secret-key', { expiresIn: '7d' });
 
-        // return res.send({ token });
-        return res
-          .cookie('jwt', token, {
-          // token - наш JWT токен, который мы отправляем
-            maxAge: 3600000 * 24 * 7,
-            httpOnly: true,
-          })
-          .status(200)
-          .send({ data: user.toJSON() });
+        return res.send({ token });
       });
     }).catch(() => {
       next(new AuthError('Неверный email или пароль'));
     });
 };
+function logout(req, res, next) {
+  try {
+    res.clearCookie('jwt')
+      .status(200)
+      .send({ message: 'успешный выход' });
+  } catch (err) { next(err); }
+}
 
 const getUsers = (req, res, next) => {
   User.find({})
-    .then((users) => res.send({ data: users }))
+    .then((data) => res.send(data))
     .catch(next);
 };
 
@@ -65,7 +92,7 @@ const createUser = (req, res, next) => {
 const getUserByID = (req, res, next) => {
   User.findById(req.params.userId)
     .orFail(new NotFoundError('Пользователь по указанному id не найден'))
-    .then((user) => res.status(200).send({ data: user }))
+    .then((data) => res.status(200).send(data))
     .catch((err) => {
       if (err.name === 'CastError') {
         next(new CastError('Невалидный id пользователя'));
@@ -79,7 +106,7 @@ const getUserInfo = (req, res, next) => {
   const currentUser = req.user._id;
   User.findById(currentUser)
     .orFail(new NotFoundError('Пользователь по указанному id не найден'))
-    .then((user) => res.send({ data: user }))
+    .then((data) => res.send(data))
     .catch((err) => {
       if (err.name === 'CastError') {
         next(new CastError('Невалидный id пользователя'));
@@ -99,7 +126,7 @@ const updateUser = (req, res, next) => {
       new: true,
     },
   ).orFail(new NotFoundError('Пользователь по указанному id не найден'))
-    .then((user) => res.send({ data: user }))
+    .then((data) => res.send(data))
     .catch((err) => {
       if (err.name === 'ValidationError') {
         next(new ValidationError('Некорректные данные запроса'));
@@ -121,7 +148,7 @@ const updateUseravatar = (req, res, next) => {
     },
   )
     .orFail(new NotFoundError('Пользователь по указанному id не найден'))
-    .then((user) => res.send({ data: user }))
+    .then((data) => res.send(data))
     .catch((err) => {
       if (err.name === 'ValidationError') {
         next(new ValidationError('Некорректные данные запроса'));
@@ -133,6 +160,7 @@ const updateUseravatar = (req, res, next) => {
 
 module.exports = {
   login,
+  logout,
   getUserInfo,
   getUsers,
   updateUser,

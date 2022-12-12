@@ -3,7 +3,7 @@
   
 Пожалуйста, прикрепите в это описание ссылку на сайт, размещенный на Яндекс.Облаке.
 
-IP 51.250.92.120
+IP 51.250.80.24
 Frontend https://yessena.nomoredomains.club/
 Backend https://api.yessena.students.nomoredomains.club
 
